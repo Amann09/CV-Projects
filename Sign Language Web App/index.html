@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam Access</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        p {
+            color: #666;
+            margin-top: 10px;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        video {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #f00; /* Just for visualization; you can remove this border */
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+
+</head>
+
+<body>
+    <div class="container">
+        <h1>Webcam Access</h1>
+        <p>This web app requires access to your webcam.</p>
+        <button id="startButton">Open Webcam</button>
+        <video id="videoElement" autoplay></video>
+        <canvas id="canvasElement" width="640" height="480"></canvas>
+    </div>
+
+    
+
+    <script>
+        const startButton = document.getElementById('startButton');
+        const videoElement = document.getElementById('videoElement');
+        const canvasElement = document.getElementById('canvasElement');
+        const ctx = canvasElement.getContext('2d');
+
+        startButton.addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                videoElement.srcObject = stream;
+
+                // Start inference when the video stream is available
+                runInference();
+            } catch (error) {
+                console.error('Error accessing webcam:', error);
+            }
+        });
+
+        async function runInference() {
+            const model = await tf.loadLayersModel('model.json'); // Load your trained model
+
+            while (true) {
+                const image = tf.browser.fromPixels(videoElement); // Capture video frame
+                const resizedImage = tf.image.resizeBilinear(image, [224, 224]); // Resize the image to match your model's input size
+                const preprocessedImage = tf.div(resizedImage, 255.0); // Preprocess the image
+
+                // Make predictions
+                const predictions = model.predict(preprocessedImage);
+
+                // Display the predictions on the canvas
+                // You'll need to implement this part based on your model's output
+                // For example, you can draw bounding boxes or labels on the canvas.
+                const bboxColor = 'red'; // Bounding box color
+                const bboxThickness = 2; // Bounding box thickness
+                const labelColor = 'red'; // Text label color
+                const labelFont = '16px Arial'; // Text label font
+
+                for (let i = 0; i < predictions.length; i++) {
+                    const prediction = predictions[i];
+                    const label = 'Sign ' + i;
+                    const [x, y, width, height] = prediction; // Adjust these values according to your model's output
+                    ctx.beginPath();
+                    ctx.rect(x, y, width, height);
+                    ctx.strokeStyle = bboxColor;
+                    ctx.lineWidth = bboxThickness;
+                    ctx.fillStyle = labelColor;
+                    ctx.font = labelFont;
+                    ctx.fillText(label, x, y - 5);
+                    ctx.stroke();
+                }
+
+                tf.dispose([image, resizedImage, preprocessedImage, predictions]); // Clean up tensors
+                await tf.nextFrame(); // Wait for the next animation frame
+            }
+        }
+
+
+    </script>
+</body>
+
+</html>
